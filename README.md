@@ -1,6 +1,8 @@
 
 
-## Usage
+## Atlas Image Handler
+
+Usage
 
 ```bash
 ./atlas-deploy.sh deploy_stack|build|update
