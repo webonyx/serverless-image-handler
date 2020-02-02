@@ -21,9 +21,10 @@
     "pretest": "npm install",
     "test": "nyc --reporter=html --reporter=text mocha",
     "build:init": "rm -rf package-lock.json && rm -rf dist && rm -rf node_modules",
+    "build:withdocker": "docker run -v $PWD:/var/task lambci/lambda:build-nodejs12.x npm install --production",
     "build:zip": "zip -rq image-handler.zip . -x template.yml",
     "build:dist": "mkdir dist && mv image-handler.zip dist/",
-    "build": "npm run build:init && npm install --arch=x64 --platform=linux --production && npm run build:zip && npm run build:dist"
+    "build": "npm run build:init && npm run build:withdocker && npm run build:zip && npm run build:dist"
   },
   "license": "Apache-2.0"
 }
