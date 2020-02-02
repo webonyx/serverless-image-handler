@@ -49,6 +49,9 @@ class ImageRequest {
             return Promise.resolve(originalImage.Body);
         }
         catch(err) {
+            if (process.env.FALLBACK_BUCKET !== '' && process.env.FALLBACK_BUCKET !== undefined) {
+                return this.getOriginalImage(process.env.FALLBACK_BUCKET, key);
+            }
             return Promise.reject({
                 status: 500,
                 code: err.code,

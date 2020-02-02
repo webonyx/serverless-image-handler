@@ -197,6 +197,37 @@ describe('getOriginalImage()', function() {
             })
         });
     });
+    describe('002/fallbackBucket', async function() {
+        it(`Should fallback to an additional bucket if present for looking up original image`, async function() {
+            // Arrange
+            const S3 = require('aws-sdk/clients/s3');
+            const sinon = require('sinon');
+            const getObject = S3.prototype.getObject = sinon.stub();
+            process.env = {
+                FALLBACK_BUCKET : 'fallbackBucket'
+            }
+
+            getObject.withArgs({Bucket: 'invalidBucket', Key: 'validKey'}).returns({
+                promise: () => {
+                    return Promise.reject({
+                        code: 500,
+                        message: 'SimulatedInvalidParameterException'
+                    })
+                }
+            });
+            getObject.withArgs({Bucket: 'fallbackBucket', Key: 'validKey'}).returns({
+                promise: () => { return {
+                    Body: Buffer.from('SampleImageContent\n')
+                }}
+            });
+
+            // Act
+            const imageRequest = new ImageRequest();
+            const result = await imageRequest.getOriginalImage('invalidBucket', 'validKey');
+            // Assert
+            assert.deepEqual(result, Buffer.from('SampleImageContent\n'));
+        });
+    });
 });
 
 // ----------------------------------------------------------------------------
