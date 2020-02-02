@@ -263,6 +263,7 @@
                         "SOURCE_BUCKETS" : {
                             "Ref" : "SourceBuckets"
                         },
+                        "FALLBACK_BUCKET" : "",
                         "REWRITE_MATCH_PATTERN" : "",
                         "REWRITE_SUBSTITUTION" : ""
                     }
