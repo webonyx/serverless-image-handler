@@ -2,10 +2,20 @@
 
 ## Atlas Image Handler
 
-Usage
+### Production
 
 ```bash
-./atlas-deploy.sh deploy_stack|build|update
+cd deployment
+./atlas-deploy.sh build
+./atlas-deploy.sh deploy_stack
+```
+
+### Staging
+
+```bash
+cd deployment
+STACK_ENV=staging ./atlas-deploy.sh build
+STACK_ENV=staging ./atlas-deploy.sh deploy_stack
 ```
 
 * `deploy_stack`: Deploy Cloudformation stack

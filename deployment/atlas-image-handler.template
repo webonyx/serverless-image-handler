@@ -29,6 +29,11 @@
             "Default" : "atlas-image-handler/production",
             "Type" : "String"
         },
+        "BasePath" : {
+            "Description" : "Api base path",
+            "Default" : "/image",
+            "Type" : "String"
+        },
         "LogRetentionPeriod" : {
             "Description" : "This solution automatically logs events to Amazon CloudWatch. Select the amount of time for CloudWatch logs from this solution to be retained (in days).",
             "Default" : 1,
@@ -147,7 +152,7 @@
                         "version": "2017-01-27T21:44:58Z",
                         "title": { "Ref" : "AWS::StackName" }
                     },
-                    "basePath": "/image",
+                    "basePath": { "Ref" : "BasePath" },
                     "schemes": [ "https" ],
                     "paths": {
                         "/{proxy+}": {
@@ -206,7 +211,7 @@
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
                 "RestApiId": { "Ref": "ImageHandlerApi" },
-                "StageName": "image",
+                "StageName": "imagehandler",
                 "StageDescription": {
                     "AccessLogSetting": {
                         "DestinationArn": {

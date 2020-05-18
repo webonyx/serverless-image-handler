@@ -42,20 +42,38 @@ class ImageRequest {
     async getOriginalImage(bucket, key) {
         const S3 = require('aws-sdk/clients/s3');
         const s3 = new S3();
-        const imageLocation = { Bucket: bucket, Key: process.env.KEY_PREFIX ? process.env.KEY_PREFIX + '/' + key : key };
-        const request = s3.getObject(imageLocation).promise();
+        let request;
+        let originalImage;
+
         try {
-            const originalImage = await request;
+            request = s3.getObject({
+                Bucket: bucket,
+                Key: 'public/' + key,
+            }).promise();
+            originalImage = await request;
             return Promise.resolve(originalImage.Body);
         }
-        catch(err) {
+        catch (e) {
+            console.log(e.message + ` Key: public/` + key)
+        }
+
+        try {
+            request = s3.getObject({
+                Bucket: bucket,
+                Key: 'private/' + key,
+            }).promise();
+            originalImage = await request;
+            return Promise.resolve(originalImage.Body);
+        }
+        catch (err) {
             if (process.env.FALLBACK_BUCKET !== '' && process.env.FALLBACK_BUCKET !== undefined) {
                 return this.getOriginalImage(process.env.FALLBACK_BUCKET, key);
             }
             return Promise.reject({
                 status: 500,
                 code: err.code,
-                message: err.message
+                message: err.message,
+                key: key,
             })
         }
     }
