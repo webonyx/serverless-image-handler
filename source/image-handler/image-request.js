@@ -43,7 +43,7 @@ class ImageRequest {
                 this.ContentType = `image/${this.outputFormat}`;
             }
 
-            return Promise.resolve(this);
+            return this;
         } catch (err) {
             return Promise.reject(err);
         }
@@ -68,7 +68,7 @@ class ImageRequest {
                 Key: filename,
             }).promise();
             this.collectImageMetadata(originalImage)
-            return Promise.resolve(originalImage.Body);
+            return originalImage.Body;
         }
         catch (e) {
             error = e
@@ -81,7 +81,7 @@ class ImageRequest {
                     Key: filename
                 }).promise();
                 this.collectImageMetadata(originalImage)
-                return Promise.resolve(originalImage.Body);
+                return originalImage.Body;
             }
             catch (e) {
                 error = e
