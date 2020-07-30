@@ -28,22 +28,26 @@ exports.handler = async (event) => {
         });
 
         const processedRequest = await imageHandler.process(request);
-        const response = {
+        const headers = getResponseHeaders(false);
+        headers["Content-Type"] = request.ContentType;
+        headers["Expires"] = request.Expires;
+        headers["Last-Modified"] = request.LastModified;
+        headers["Cache-Control"] = request.CacheControl;
+
+        return {
             "statusCode": 200,
-            "headers" : getResponseHeaders(),
+            "headers" : headers,
             "body": processedRequest,
             "isBase64Encoded": true
         }
-        return response;
     } catch (err) {
         console.log(err);
-        const response = {
+        return {
             "statusCode": err.status,
             "headers" : getResponseHeaders(true),
             "body": JSON.stringify(err),
             "isBase64Encoded": false
         }
-        return response;
     }
 }
 
@@ -56,15 +60,17 @@ const getResponseHeaders = (isErr) => {
     const corsEnabled = (process.env.CORS_ENABLED === "Yes");
     const headers = {
         "Access-Control-Allow-Methods": "GET",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Credentials": true,
-        "Content-Type": "image"
     }
+
     if (corsEnabled) {
         headers["Access-Control-Allow-Origin"] = process.env.CORS_ORIGIN;
     }
+
     if (isErr) {
         headers["Content-Type"] = "application/json"
     }
+
     return headers;
 }

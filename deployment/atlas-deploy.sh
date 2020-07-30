@@ -27,7 +27,6 @@ deploy_stack() {
 build() {
     set -x
     cd ${SOURCE_DIR}/image-handler
-    npm install
     npm run build
 
     aws s3 cp dist/image-handler.zip s3://atlas-lambdas-us-east-1/atlas-image-handler/${STACK_ENV}/ --acl bucket-owner-full-control

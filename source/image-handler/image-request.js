@@ -22,11 +22,27 @@ class ImageRequest {
      */
     async setup(event) {
         try {
-            this.requestType = this.parseRequestType(event);
+            this.requestType = 'Default' // this.parseRequestType(event);
             this.bucket = this.parseImageBucket(event, this.requestType);
             this.key = this.parseImageKey(event, this.requestType);
             this.edits = this.parseImageEdits(event, this.requestType);
             this.originalImage = await this.getOriginalImage(this.bucket, this.key)
+
+            /* Decide the output format of the image.
+             * 1) If the format is provided, the output format is the provided format.
+             * 2) Use the default image format for the rest of cases.
+             */
+            let outputFormat = this.getOutputFormat(event);
+            if (this.edits && this.edits.toFormat) {
+                this.outputFormat = this.edits.toFormat;
+            } else if (outputFormat) {
+                this.outputFormat = outputFormat;
+            }
+
+            if (this.outputFormat) {
+                this.ContentType = `image/${this.outputFormat}`;
+            }
+
             return Promise.resolve(this);
         } catch (err) {
             return Promise.reject(err);
@@ -42,39 +58,63 @@ class ImageRequest {
     async getOriginalImage(bucket, key) {
         const S3 = require('aws-sdk/clients/s3');
         const s3 = new S3();
-        let request;
         let originalImage;
+        let error;
+        const filename = key.indexOf('/') !== -1 ? key : 'public/' + key // full path support
 
         try {
-            request = s3.getObject({
+            originalImage = await s3.getObject({
                 Bucket: bucket,
-                Key: 'public/' + key,
+                Key: filename,
             }).promise();
-            originalImage = await request;
+            this.collectImageMetadata(originalImage)
             return Promise.resolve(originalImage.Body);
         }
         catch (e) {
-            console.log(e.message + ` Key: public/` + key)
+            error = e
         }
 
-        try {
-            request = s3.getObject({
-                Bucket: bucket,
-                Key: 'private/' + key,
-            }).promise();
-            originalImage = await request;
-            return Promise.resolve(originalImage.Body);
-        }
-        catch (err) {
-            if (process.env.FALLBACK_BUCKET !== '' && process.env.FALLBACK_BUCKET !== undefined) {
-                return this.getOriginalImage(process.env.FALLBACK_BUCKET, key);
+        if (process.env.FALLBACK_BUCKET) {
+            try {
+                originalImage = await s3.getObject({
+                    Bucket: process.env.FALLBACK_BUCKET,
+                    Key: filename
+                }).promise();
+                this.collectImageMetadata(originalImage)
+                return Promise.resolve(originalImage.Body);
             }
-            return Promise.reject({
-                status: 500,
-                code: err.code,
-                message: err.message,
-                key: key,
-            })
+            catch (e) {
+                error = e
+            }
+        }
+
+        return Promise.reject({
+            status: (error && 'NoSuchKey' === error.code) ? 404 : 500,
+            code: error ? error.code : 'NoSuchKey',
+            message: error ? error.message : 'Failed to getOriginalImage',
+            key: key,
+        })
+    }
+
+    collectImageMetadata(object) {
+        if (object.ContentType) {
+            this.ContentType = object.ContentType;
+        } else {
+            this.ContentType = "image";
+        }
+
+        if (object.Expires) {
+            this.Expires = new Date(object.Expires).toUTCString();
+        }
+
+        if (object.LastModified) {
+            this.LastModified = new Date(object.LastModified).toUTCString();
+        }
+
+        if (object.CacheControl) {
+            this.CacheControl = object.CacheControl;
+        } else {
+            this.CacheControl = "max-age=31536000,public";
         }
     }
 
@@ -214,17 +254,44 @@ class ImageRequest {
         const path = event["path"];
         if (path !== undefined) {
             const splitPath = path.split("/");
-            const encoded = splitPath[splitPath.length - 1];
-            const toBuffer = new Buffer(encoded, 'base64');
-            try {
-                return JSON.parse(toBuffer.toString('ascii'));
-            } catch (e) {
+            let decoded = null
+            for (let i = splitPath.length - 1; i >= 0; i--) {
+                const encoded = splitPath[i]
+
+                // Maybe a filename
+                if (encoded.indexOf('.') > -1) {
+                    continue
+                }
+
+                try {
+                    const toBuffer = Buffer.from(encoded, 'base64');
+                    decoded = JSON.parse(toBuffer.toString('ascii'));
+                    break
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            if (!decoded) {
                 throw ({
                     status: 400,
                     code: 'DecodeRequest::CannotDecodeRequest',
                     message: 'The image request you provided could not be decoded. Please check that your request is base64 encoded properly and refer to the documentation for additional guidance.'
                 });
             }
+
+            if (!decoded.edits) {
+                throw ({
+                    status: 400,
+                    code: 'DecodeRequest::InvalidRequest',
+                    message: 'No "edits" found. It aims to support default request only from July 30 2020.'
+                });
+            }
+
+            if (!decoded.key) {
+                decoded.key = splitPath[splitPath.length - 1] // Assume key is last part
+            }
+            return decoded;
         } else {
             throw ({
                 status: 400,
@@ -249,9 +316,21 @@ class ImageRequest {
             });
         } else {
             const formatted = sourceBuckets.replace(/\s+/g, '');
-            const buckets = formatted.split(',');
-            return buckets;
+            return formatted.split(',');
         }
+    }
+
+    /**
+     * Return the output format depending on the accepts headers and request type
+     * @param {Object} event - The request body.
+     */
+    getOutputFormat(event) {
+        if (this.requestType === 'Default') {
+            const decoded = this.decodeRequest(event);
+            return decoded.outputFormat;
+        }
+
+        return null;
     }
 }
 
