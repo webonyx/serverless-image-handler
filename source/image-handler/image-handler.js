@@ -22,17 +22,14 @@ class ImageHandler {
      */
     async process(request) {
         const originalImage = request.originalImage;
-        const edits = request.edits;
-        if (edits !== undefined) {
-            const modifiedImage = await this.applyEdits(originalImage, edits);
-            if (request.outputFormat !== undefined) {
-                await modifiedImage.toFormat(request.outputFormat);
-            }
-            const bufferImage = await modifiedImage.toBuffer();
-            return bufferImage.toString('base64');
-        } else {
-            return originalImage.toString('base64');
+        const defaultEdits = {resize: {width: 1200, fit: 'inside', withoutEnlargement: true}};
+        const edits = request.edits || defaultEdits;
+        const modifiedImage = await this.applyEdits(originalImage, edits);
+        if (request.outputFormat !== undefined) {
+            await modifiedImage.toFormat(request.outputFormat);
         }
+        const bufferImage = await modifiedImage.toBuffer();
+        return bufferImage.toString('base64');
     }
 
     /**
@@ -73,7 +70,21 @@ class ImageHandler {
             }
         }
         // Return the modified image
-        return image;
+        return this.reduceImageSize(image);
+    }
+
+    async reduceImageSize(sharpImage) {
+        const imageBuffer = await sharpImage.toBuffer();
+        const metadata = await sharp(imageBuffer).metadata()
+        if (metadata.size < 5242880) {
+            return sharpImage
+        }
+
+        const newWidth = parseInt(metadata.width * 0.9);
+        // Reduce 10% until it is under 5MB
+        console.log(`Large image size ${metadata.size}. Reducing 10% image width from ${metadata.width} to ${newWidth}...`)
+
+        return await this.applyEdits(imageBuffer, { resize: { width: newWidth, fit: 'inside', withoutEnlargement: true }});
     }
 
     /**
