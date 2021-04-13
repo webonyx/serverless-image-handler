@@ -39,7 +39,7 @@ class ImageHandler {
      * @param {Object} edits - The edits to be made to the original image.
      */
     async applyEdits(originalImage, edits) {
-        const image = sharp(originalImage);
+        const image = sharp(originalImage, { failOnError: false });
         const keys = Object.keys(edits);
         const values = Object.values(edits);
         // Apply the image edits
@@ -75,7 +75,7 @@ class ImageHandler {
 
     async reduceImageSize(sharpImage) {
         const imageBuffer = await sharpImage.toBuffer();
-        const metadata = await sharp(imageBuffer).metadata()
+        const metadata = await sharp(imageBuffer, { failOnError: false }).metadata()
         if (metadata.size < 5242880) {
             return sharpImage
         }
